@@ -1,0 +1,125 @@
+---
+title: "tRNASeq Analysis : Isoacceptor & Isodecoders"
+author: "Sonali Arora"
+date: "Aug 11, 2025"
+output: 
+  html_document:
+    toc: true
+    theme: united
+---
+
+```{r}
+library(edgeR)
+library(ggplot2)
+library(DESeq2)
+library(edgeR)
+library(ggplot2)
+library(pheatmap)
+library(RColorBrewer)
+library(writexl)
+```
+In this vignetter we show one example, using LnCaP cell line.
+
+```{r}
+info= read.delim("only_read2_LNCaP_tRNA_raw_counts.txt", header=T, stringsAsFactors = F, row.names = 1)
+info = info[, c(1:3)]
+
+
+tag = "LNCAP_LP_VS_AD"
+df = read.delim("LNCaP_isodecoders_cpm.txt" , header=T, stringsAsFactors = F, row.names=1)
+colnames(df)[which(colnames(df)=="GFP2")] = "AD2" ## ar positive
+colnames(df)[which(colnames(df)=="GFP3")] = "AD3"
+colnames(df)[which(colnames(df)=="NE1")] = "LP1" ##NE positive
+colnames(df)[which(colnames(df)=="NE2")] = "LP2"
+colnames(df)[which(colnames(df)=="NE3")] = "LP3"
+
+colnames(df) = gsub("raw_", "", colnames(df))
+colnames(df) = gsub("tsv", "", colnames(df))
+df[is.na(df)] = 0
+
+group1 = grep("LP" , colnames(df))
+group2 = grep("AD", colnames(df))
+
+info = info[rownames(df), ]
+
+cpm_counts <- apply(df, 2, function(x) {
+    as.numeric(as.character(x)) 
+})
+rownames(cpm_counts) = rownames(df)
+
+
+ans <- apply(cpm_counts, 1, function(x) {
+    tryCatch(
+        t.test(as.numeric(x[group1]), as.numeric(x[group2]), alternative = "two.sided")$p.value,
+        error = function(e) NA  # Return NA if error occurs
+    )
+})
+
+rm = cbind(LP_average = rowMeans(cpm_counts[, group1]), 
+          AD_average=  rowMeans(cpm_counts[, group2]) )
+
+medians_group1 <- apply(cpm_counts[, group1], 1, median, na.rm = TRUE)
+medians_group2 <- apply(cpm_counts[, group2], 1, median, na.rm = TRUE)
+
+
+lfc = apply(cpm_counts, 1, function(x){
+    num =median(x[group1], na.rm = T) 
+    denom = median(x[group2], na.rm = T)
+    f1 = foldchange(num, denom) 
+    foldchange2logratio(f1, base = 2)
+})
+
+writedf = cbind( isodecoder = rownames(cpm_counts),  info = info, lfc = lfc, ttest_pval = ans, rm, cpm_counts)
+
+up = writedf[which(writedf$lfc > 0 & writedf$ttest_pval < 0.05), ]
+down = writedf[which(writedf$lfc < 0 & writedf$ttest_pval < 0.05), ]
+
+mydf = data.frame(cbind(isodecoder = rownames(cpm_counts), cpm_counts))
+write_xlsx(mydf, file.path(resdir,paste0(tag, "_All_isodecoder_cpm_counts.xlsx")) )
+
+lst = list(all_trna = writedf, up = up, down = down)
+write_xlsx(lst, file.path(resdir, paste0(tag, "_All_isodecoder_analysis.xlsx")) )
+
+isoacceptors = unique(info$id)
+
+sp = lapply(isoacceptors, function(mine){
+    idx = which(info$id==mine)
+    if(length(idx)==1){
+        ans = cpm_counts[idx, ]
+    }else{
+        ans = cpm_counts[idx, ]
+        ans =colSums(ans)
+    }
+    ans    
+})
+
+sp2 = do.call(rbind, sp)
+rownames(sp2) = isoacceptors
+
+writedf2 = data.frame(cbind(isoacceptors = isoacceptors, sp2))
+write_xlsx(writedf2, file.path(resdir,paste0(tag, "_All_isoacceptor_cpm_counts.xlsx")) )
+ans = apply(sp2, 1, function(x){
+    tryCatch(
+        t.test(as.numeric(x[group1]), as.numeric(x[group2]), alternative = "two.sided")$p.value,
+        error = function(e) NA  # Return NA if error occurs
+    )
+})
+rm = cbind(AD_average = rowMeans(sp2[, group2]), LP_average = rowMeans(sp2[, group1]) )
+
+lfc = apply(sp2, 1, function(x){
+    num =median(x[group1]) 
+    denom = median(x[group2])
+    f1 = foldchange(num, denom) 
+    foldchange2logratio(f1, base = 2)
+})
+
+writedf = data.frame(cbind(isoacceptor =isoacceptors, 
+                           lfc = lfc, ttest_pval = ans, rm, sp2))
+
+up = writedf[which(writedf$lfc > 0 & writedf$ttest_pval < 0.05), ]
+down = writedf[which(writedf$lfc < 0 & writedf$ttest_pval < 0.05), ]
+
+lst = list(all_trna = writedf, up = up, down = down)
+write_xlsx(lst, file.path(resdir, paste0(tag, "_All_isoacceptor_analysis.xlsx")) )
+
+```
