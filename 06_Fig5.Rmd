@@ -1,0 +1,256 @@
+---
+title: "Fig 5"
+output: html_document
+date: "2025-08-10"
+---
+
+```{r}
+library(tidyverse)
+library(ggrepel)
+library(scales)
+```
+Fig_5b, c, d
+```{r}
+#File
+LNCaP_AD_P_80s <- read_csv("AD_totalPoly_vs_80S_fdr_0.05_fold_1.25_DESeq2_fdr_0.05_fc1.25.csv")
+LNCaP_LP_P_80s <- read_csv("NE_totalPoly_vs_80s_fdr_0.05_fold_1.25_DESeq2_fdr_0.05_fc1.25.csv")
+LNCaP_UCU_P_80s <- read_csv("TCT_totalPoly_vs_80s_fdr_0.05_fold_1.25_DESeq2_fdr_0.05_fc1.25.csv")
+codons <- read_csv("codon_usage_18kgenes_hg38.csv")
+Codon_AA <- read_csv("codon_aminoacid_table.csv")
+
+
+# Define color scales once
+color_Arg_codon <- c("Arg-AGA" = "goldenrod1", "Arg-CGG" = "green3", "Other Arg" = "palevioletred2", "Others" = "black")
+size_Arg_codon <- c(3,3,3,2)
+color_sig_codon <- c("Arg-AGA" = "goldenrod1", "Arg-CGG" = "green3", "favored" = "firebrick3", "ns" = "black", "unfavored" = "royalblue3")
+size_sig_codon <- c(3,3,3,2,3)
+
+process_and_plot <- function(df, codons_df, codon_aa_df, prefix) {
+  # Step 1: Filter and get top/down genes
+  df <- df %>%
+    filter(if_all(contains("cpm"), ~ . >= 5) & padj < 0.05)
+  df_150_up <- df %>%
+    top_n(150, log2FoldChange)
+  df_150_down <- df %>%
+    top_n(-150, log2FoldChange)
+  
+  # Step 2: Get codons for top/down genes
+  df_150_up_codons <- codons_df %>%
+    filter(gene %in% df_150_up$gene)
+  df_150_down_codons <- codons_df %>%
+    filter(gene %in% df_150_down$gene)
+  
+  # Step 3: Summarize codon usage
+  df_150_up_codons_2 <- df_150_up_codons %>%
+    summarise(across(c("AAA":"TTT"), sum)) %>%
+    pivot_longer(cols = everything()) %>%
+    rename("codon" = 1, "up" = 2)
+  df_150_down_codons_2 <- df_150_down_codons %>%
+    summarise(across(c("AAA":"TTT"), sum)) %>%
+    pivot_longer(cols = everything()) %>%
+    rename("codon" = 1, "down" = 2)
+
+  df_150_summary <- left_join(df_150_up_codons_2, df_150_down_codons_2, by = "codon") %>%
+    mutate(
+      codon_freq_up = up / sum(up),
+      codon_freq_down = down / sum(down)
+    )
+  
+  # Step 4: Join with amino acid table and classify codons
+  df_150_summary <- left_join(df_150_summary, codon_aa_df, by = "codon") %>%
+    unite(col = "AA_codon", c("amino acid", "codon"), sep = "-", remove = FALSE, na.rm = TRUE) %>%
+    mutate(codon_color = case_when(
+      codon %in% c("CGT", "CGC", "CGA", "AGG") ~ "Other Arg",
+      codon == "AGA" ~ "Arg-AGA",
+      codon == "CGG" ~ "Arg-CGG",
+      TRUE ~ "Others"
+    ))
+  
+  # Plot 1
+  p1 <- df_150_summary %>%
+    ggplot(aes(x = codon_freq_up, y = codon_freq_down, color = codon_color, size = codon_color)) +
+    geom_point(shape = 19) +
+    geom_abline(aes(intercept = 0, slope = 1), color = "grey") +
+    xlim(c(0, 0.04)) + ylim(c(0, 0.04)) +
+    scale_color_manual(values = color_Arg_codon) +
+    scale_size_manual(values = size_Arg_codon) +
+    theme_classic() +
+    theme(legend.position = "none", axis.title = element_text(size = 12, face = "bold")) +
+    labs(x = "Codon Freq Up", y = "Codon Freq Down", title = paste0(prefix, " top 150 Arg codons")) +
+    geom_text_repel(aes(label = ifelse(`amino acid` == "Arg", AA_codon, "")), max.overlaps = Inf, box.padding = 1, point.padding = 0.75, min.segment.length = 0, segment.linetype = 1, arrow = arrow(length = unit(0.010, "npc")))
+  
+  # Step 5: Classify codons for second plot
+  df_150_summary <- df_150_summary %>%
+    mutate(diff_codon_usage = codon_freq_up - codon_freq_down) %>%
+    arrange(desc(diff_codon_usage))
+  
+  df_150_summary_cu_favored <- df_150_summary %>% top_n(5, diff_codon_usage)
+  df_150_summary_cu_unfavored <- df_150_summary %>% top_n(-5, diff_codon_usage)
+  
+  df_150_plot <- df_150_summary %>%
+    mutate(codon_usage = case_when(
+      AA_codon == "Arg-AGA" ~ "Arg-AGA",
+      AA_codon == "Arg-CGG" ~ "Arg-CGG",
+      AA_codon %in% df_150_summary_cu_favored$AA_codon ~ "favored",
+      AA_codon %in% df_150_summary_cu_unfavored$AA_codon ~ "unfavored",
+      TRUE ~ "ns"
+    ))
+  
+  # Plot 2
+  p2 <- df_150_plot %>%
+    ggplot(aes(x = codon_freq_up, y = codon_freq_down, color = codon_usage, size = codon_usage)) +
+    geom_point(shape = 19) +
+    geom_abline(aes(intercept = 0, slope = 1), color = "grey") +
+    xlim(c(0, 0.04)) + ylim(c(0, 0.04)) +
+    scale_color_manual(values = color_sig_codon) +
+    scale_size_manual(values = size_sig_codon) +
+    theme_classic() +
+    theme(legend.position = "none", axis.title = element_text(size = 12, face = "bold")) +
+    labs(x = "Codon Freq Up", y = "Codon Freq Down", title = paste0(prefix, " top 150")) +
+    geom_text_repel(aes(label = ifelse(codon_usage != "ns", AA_codon, "")), max.overlaps = Inf, box.padding = 0.65, point.padding = 0.75, min.segment.length = 0, segment.linetype = 1, arrow = arrow(length = unit(0.015, "npc")))
+
+  # You would normally print these plots in an interactive R session
+  # print(p1)
+  # print(p2)
+}
+
+# Run the function for each dataset
+LNCaP_AD_P_80s <- read_csv(file_AD)
+process_and_plot(LNCaP_AD_P_80s, codons, Codon_AA, "LNCaP AD")
+
+LNCaP_LP_P_80s <- read_csv(file_LP)
+process_and_plot(LNCaP_LP_P_80s, codons, Codon_AA, "LNCaP LP")
+
+LNCaP_UCU_P_80s <- read_csv(file_UCU)
+process_and_plot(LNCaP_UCU_P_80s, codons, Codon_AA, "LNCaP UCU")
+
+```
+# Fig 5e
+
+
+```{r}
+#File
+LNCaP_UCU_LP_polysome_seq <- read.csv("Figures for Manuscript/Supplementary Tables/LNCaP_UCU_vs_LP_polysome_RNA_seq.csv")
+codons <- read_csv("codon_usage_18kgenes_hg38.csv")
+codon_freq <- codons %>%
+  rowwise() %>%
+  mutate(total = sum(c_across(2:65))) %>%
+  mutate(across(c(2:65), function(x) x/total)) %>%
+  ungroup()
+LNCaP_UCU_LP_polysome_RNA <- left_join(LNCaP_UCU_LP_polysome_seq, codon_freq, by = "gene")
+LNCaP_UCU_LP_high_AGA <- LNCaP_UCU_LP_polysome_RNA  %>%
+  top_n(5000, AGA)
+LNCaP_UCU_LP_low_AGA <- LNCaP_UCU_LP_polysome_RNA  %>%
+  top_n(-5000, AGA)
+LNCaP_UCU_LP_polysome_RNA_plot <- LNCaP_UCU_LP_polysome_RNA %>%
+  mutate(gene_exp = case_when(DESeq2_rna_log2FoldChange > log2(1.5) & -log2(1.25) < xtail_log2FC_TE_v2 & xtail_log2FC_TE_v2 < log2(1.25) ~ "RNA_up",
+                              DESeq2_rna_log2FoldChange < -log2(1.5) & -log2(1.25) < xtail_log2FC_TE_v2 & xtail_log2FC_TE_v2 < log2(1.25) ~ "RNA_down",
+                              xtail_log2FC_TE_v2 > log2(1.25) & -log2(1.5) < DESeq2_rna_log2FoldChange & DESeq2_rna_log2FoldChange < log2(1.5) ~ "protein_up",
+                              xtail_log2FC_TE_v2 < -log2(1.25) & -log2(1.5) < DESeq2_rna_log2FoldChange & DESeq2_rna_log2FoldChange < log2(1.5) ~ "protein_down",
+                             DESeq2_rna_log2FoldChange > log2(1.5) & xtail_log2FC_TE_v2 > log2(1.25) ~ "RNA_up_protein_up",
+                             DESeq2_rna_log2FoldChange < -log2(1.5) & xtail_log2FC_TE_v2 < -log2(1.25) ~ "RNA_down_protein_down",
+                             DESeq2_rna_log2FoldChange > log2(1.5) & xtail_log2FC_TE_v2 < -log2(1.25) ~ "RNA_up_protein_down",
+                             DESeq2_rna_log2FoldChange < log2(1.5) & xtail_log2FC_TE_v2 > log2(1.25) ~ "RNA_down_protein_up",
+                              TRUE ~ "ns")) %>%
+  mutate(RNA_sig_changes = case_when(DESeq2_rna_padj < 0.05 ~ "sig",
+                                     TRUE ~ "not sig")) %>%
+  mutate(TE_sig_changes = case_when(xtail_FDR_v2 < 0.1 ~ "sig",
+                                     TRUE ~ "not sig")) %>%
+  mutate(gene_exp_sig_changes = case_when(RNA_sig_changes == "sig" ~ "sig",
+                                          TE_sig_changes == "sig" ~ "sig",
+                                          TRUE ~ "not sig")) %>%
+  mutate(AGA_freq = case_when(gene %in% LNCaP_UCU_LP_high_AGA$gene ~ "high",
+                              gene %in% LNCaP_UCU_LP_low_AGA$gene ~ "low",
+                              TRUE ~ "ns")) %>%
+  mutate(Avg_AGA = case_when(AGA > 0.02133359 ~ "above avg",
+         TRUE ~ "below avg")) %>%
+  filter(if_any(contains("cpm"), ~ . >=5))
+
+#Plot
+color_gene_exp <- c("ns" = "grey80", "protein_down" = "blue","protein_up" = "blue",
+   "RNA_down" = "red", "RNA_down_protein_down" = "gold1", "RNA_down_protein_up" = 
+   "mediumseagreen", "RNA_up" = "red", "RNA_up_protein_down" = "mediumseagreen", 
+   "RNA_up_protein_up" = "gold1")
+size_gene_exp <- c("ns" = 1, "protein_down" = 2, "protein_up" = 2, "RNA_down" = 2, 
+  "RNA_down_protein_down" = 2, "RNA_down_protein_up" = 2, "RNA_up" = 2, 
+  "RNA_up_protein_down" = 2, "RNA_up_protein_up" = 2)
+
+LNCaP_UCU_LP_polysome_RNA_plot %>%
+  ggplot(aes(x = DESeq2_rna_log2FoldChange, y = xtail_log2FC_TE_v2, color = gene_exp, size = gene_exp)) +
+  geom_point(shape=19) + geom_jitter() +
+  geom_vline(xintercept = c(-log2(1.5), log2(1.5)), linetype = "dotted", color = "grey", size = 1) +
+  geom_hline(yintercept = c(-log2(1.25), log2(1.25)), linetype = "dotted", color = "grey", size = 1) +
+  scale_x_continuous(limits = c(-3,3), breaks = c(-3,-2,-1,0,1,2,3)) +
+  scale_y_continuous(limits = c(-3,3), breaks = c(-3,-2,-1,0,1,2,3)) +
+  scale_color_manual(values = color_gene_exp) +
+  scale_size_manual(values=size_gene_exp) +
+  theme_classic() +
+  theme(legend.position = "bottom") +
+  theme(axis.title = element_text(size = 12, face = "bold")) +
+  labs(x = "RNA-Seq (log2FC)", y = "TE (P/S)", title = "LNCaP UCU vs. LP Polysome RNA-seq")
+
+#Plot2
+SWI_SNF_core <- c("ACTB", "ACTL6A", "ACTL6B", "BCL7A", "BCL7B", "BCL7C",
+   "SMARCA2", "SMARCA4", "SMARCC1", "SMARCC2", "SMARCD1", "SMARCD2", "SMARCD3")
+SWI_SNF_specific <- c("ARID1A","ARID1B", "ARID2", "BICRA", "BICRAL", "BRD7", 
+   "BRD9", "DPF1", "DPF2", "DPF3", "PHF10", "PRBM1", "SMARCB1", "SMARCE1", "SS18", "SS18L1")
+LNCaP_UCU_LP_polysome_RNA_plot_SWI_SNF <- LNCaP_UCU_LP_polysome_RNA_plot %>%
+  mutate(SWI_SNF_genes = case_when(gene %in% SWI_SNF_core ~ "core",
+                   gene %in% SWI_SNF_specific ~ "specific",
+                   TRUE ~ "na"))
+color_SWI_SNF_genes <- c("core" = "blue", "na" = "grey", "specific" = "blue")
+size_SWI_SNF_genes <- c("core" = 2, "na" = 1, "specific" = 2)
+
+LNCaP_UCU_LP_polysome_RNA_plot_SWI_SNF %>%
+  ggplot(aes(x = DESeq2_rna_log2FoldChange, y = xtail_log2FC_TE_v2, color = SWI_SNF_genes, size = SWI_SNF_genes)) +
+  geom_point(shape=19) + geom_jitter() +
+  geom_vline(xintercept = c(-log2(1.5), log2(1.5)), linetype = "dotted", color = "grey", size = 1) +
+  geom_hline(yintercept = c(-log2(1.25), log2(1.25)), linetype = "dotted", color = "grey", size = 1) +
+  xlim(c(-2,2)) + ylim(c(-1,1)) +
+  scale_color_manual(values = color_SWI_SNF_genes) +
+  scale_size_manual(values = size_SWI_SNF_genes) +
+  theme_classic() +
+  theme(legend.position = "bottom") +
+  theme(axis.title = element_text(size = 12, face = "bold")) +
+  labs(x = "RNA-Seq (log2FC)", y = "TE (P/S)", title = "LNCaP LP vs. TCT SWI-SNF genes") +
+  geom_text_repel(aes(label=ifelse(`SWI_SNF_genes` !="na", gene, "")), size = 3.5, max.overlaps = Inf, box.padding = 0.65, point.padding = 0.75, min.segment.length = 0, segment.linetype = 1, arrow = arrow(length = unit(0.010, "npc")))
+
+LNCaP_UCU_LP_polysome_RNA_plot_SWI_SNF %>%
+  filter(SWI_SNF_genes %in% c("core", "specific")) %>%
+  ggplot(aes(x = DESeq2_rna_log2FoldChange, y = xtail_log2FC_TE_v2, color = gene_exp, size = gene_exp)) +
+  geom_point(shape = 19) + geom_jitter() +
+  geom_vline(xintercept = c(-log2(1.5), log2(1.5)), linetype = "dotted", color = "grey", size = 1) +
+  geom_hline(yintercept = c(-log2(1.25), log2(1.25)), linetype = "dotted", color = "grey", size = 1) +
+  xlim(c(-2,2)) + ylim(c(-1,1)) +
+  scale_color_manual(values = color_gene_exp) +
+  scale_size_manual(values=size_gene_exp) +
+  theme_classic() +
+  theme(legend.position = "bottom") +
+  theme(axis.title = element_text(size = 12, face = "bold")) +
+  labs(x = "RNA-Seq (log2FC)", y = "TE (P/S)", title = "LNCaP LP vs. TCT SWI-SNF genes") +
+  geom_text_repel(aes(label=ifelse(`SWI_SNF_genes` != "na", gene ,"")), size = 3.5, max.overlaps = Inf, box.padding = 0.65, point.padding = 0.75, min.segment.length = 0, segment.linetype = 1, arrow = arrow(length = unit(0.010, "npc")))
+
+```
+
+## Fig 5f 
+
+```{r}
+LNCaP_UCU_LP_polysome_RNA_plot_SWI_SNF_2 <- LNCaP_UCU_LP_polysome_RNA_plot_SWI_SNF %>%
+  filter(SWI_SNF_genes != "na" & xtail_log2FC_TE_v2 > log2(1.25) & gene_exp == "protein_up") %>%
+  arrange(desc(xtail_log2FC_TE_v2))
+
+#Plot
+LNCaP_UCU_LP_polysome_RNA_plot_SWI_SNF_2 %>%
+  arrange(AGA) %>%
+  mutate(gene = factor(gene, levels = c("ACTB", "SMARCB1", "BCL7C", "BCL7B", "SMARCC2"))) %>%
+  ggplot(aes(x = gene, y = AGA)) +
+  geom_bar(stat = "identity", width = 0.4) +
+  ylim(c(0,0.035)) +
+  geom_hline(yintercept = 0.02133359, linetype = "dotted", color = "grey", size = 1) +
+  theme_classic() +
+  theme(legend.position = "bottom") +
+  theme(axis.title = element_text(size = 12, face = "bold")) +
+  labs(x = "SWI/SNF genes", y = "AGA codon freq", title = "SWI-SNF genes - AGA codon freq")
+```
+
+
