@@ -1,0 +1,55 @@
+---
+title: "Fig 3"
+output: html_document
+date: "2025-08-10"
+---
+
+```{r}
+library(tidyverse)
+library(ggrepel)
+library(scales)
+library(pheatmap)
+library(xlsx)
+```
+# Fig 3b
+```{r}
+
+LNCaP_RNA_seq <- read.xlsx("Figures for Manuscript/Rscripts/Supplementary_Table_2.xlsx", sheetIndex = 1, header = TRUE)
+LNCaP_RNA_seq$RNA_AD1 <- as.numeric(LNCaP_RNA_seq$RNA_AD1)
+LNCaP_RNA_seq$RNA_AD2 <- as.numeric(LNCaP_RNA_seq$RNA_AD2)
+LNCaP_RNA_seq$RNA_AD3 <- as.numeric(LNCaP_RNA_seq$RNA_AD3)
+LNCaP_RNA_seq$RNA_LP1 <- as.numeric(LNCaP_RNA_seq$RNA_LP1)
+LNCaP_RNA_seq$RNA_LP2 <- as.numeric(LNCaP_RNA_seq$RNA_LP2)
+LNCaP_RNA_seq$RNA_LP3 <- as.numeric(LNCaP_RNA_seq$RNA_LP3)
+LNCaP_RNA_seq$RNA_UCU1 <- as.numeric(LNCaP_RNA_seq$RNA_UCU1)
+LNCaP_RNA_seq$RNA_UCU2 <- as.numeric(LNCaP_RNA_seq$RNA_UCU2)
+
+PC_ATAC <- read_csv("Polysome RNA-Seq/Transcriptome Analysis/ATAC-Seq_Tang_et_al.csv")
+PC_ATAC_LNCaP <- PC_ATAC %>%
+  filter(class == "CRPC-AR" & LNCaP != 0) %>%
+  select(1:8,15)
+LNCaP_AR_gene_exp <- LNCaP_RNA_seq %>%
+  filter(Gene %in% PC_ATAC_LNCaP$gene_name)
+
+LNCaP_AR_gene_exp_heatmap <- LNCaP_AR_gene_exp %>%
+  rowwise() %>%
+  mutate(AD_mean = mean(c_across(c(2,3,4))),
+         LP_mean = mean(c_across(c(5,6,7))),
+         UCU_mean = mean(c_across(c(8,9)))) %>%
+  filter(AD_mean > LP_mean & UCU_mean > LP_mean) %>%
+  arrange(desc(AD_mean)) %>%
+  select(c(1:9))
+LNCaP_AR_gene_exp_heatmap <- as.data.frame(LNCaP_AR_gene_exp_heatmap)
+rownames(LNCaP_AR_gene_exp_heatmap) = LNCaP_AR_gene_exp_heatmap[,1]
+LNCaP_AR_gene_exp_heatmap = LNCaP_AR_gene_exp_heatmap[,-1]
+
+#Heatmap
+sample_names <- data.frame(Status = factor(rep(c("AD", "LP", "UCU"), c(3,3,2))))
+rownames(sample_names) <- colnames(LNCaP_AR_gene_exp_heatmap)
+
+heatmap_sub_color <- c("royalblue4", colorRampPalette(colors = c("royalblue3", "white", "firebrick3"))(50), "firebrick4")
+annotation_sub_color <- list(Status = c("AD" = "springgreen4", "LP" = "#f0e442", "UCU" = "darkorchid4"))
+
+LNCaP_AR_gene_exp_heatmap %>%
+  pheatmap(color = heatmap_sub_color, cluster_rows = TRUE, cluster_cols = FALSE, show_rownames = TRUE, show_colnames = FALSE, scale = "row", annotation_col = sample_names, annotation_colors = annotation_sub_color, gaps_col = c(3,6,8))
+```
