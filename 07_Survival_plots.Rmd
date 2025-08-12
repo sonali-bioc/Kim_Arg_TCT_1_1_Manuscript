@@ -1,0 +1,123 @@
+---
+title: "Fig 6: Survival Plots"
+output: html_document
+date: "2025-08-10"
+---
+
+```{r}
+library(tidyverse)
+library(scales)
+library(ggrepel)
+library(ggpubr)
+```
+```{r}
+
+TMA_RISH <- read_csv("Figures for Manuscript/Rscripts/Fig_1k.csv")
+TMA_clinic_data <- read_csv("Figures for Manuscript/Rscripts/UWTAN_tissue_clinical_info.csv")
+
+TMA_RISH_cleaned <- TMA_RISH %>%
+  rename("Sample_ID" = "Image Tag") %>%
+  filter(`Included in analysis` == "Y") %>%
+  mutate(Sample_ID = str_remove(Sample_ID, "\\d+\\) ")) %>%
+  mutate(Patient_ID = str_extract(Sample_ID, "\\d{2}-\\d{3}")) %>%
+  mutate(across(matches("area_perc|cell_count"), as.numeric))
+
+TMA_RISH_patient_analysis <- TMA_RISH_cleaned %>%
+  group_by(Patient_ID) %>%
+  summarise(
+    across(c(6:49), mean, na.rm = TRUE),
+    .groups = "drop"
+  )
+TMA_RISH_patient_tissue <- TMA_RISH_cleaned %>%
+  group_by(Patient_ID) %>%
+  summarise(
+    Patient_Cell_Types = paste(unique(`Cell Type`), collapse = ", "),
+    # Create logical flags for AR and NE status
+    is_AR_patient = any(`Cell Type` %in% c("AR+", "AMPHICRINE", "AR+ + AR/NE MIX + Focal Amphicrine", "AR+ and NE+", "AR+/NE+")),
+    is_NE_patient = any(`Cell Type` == "NE+"),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    Tissue_of_interest_AR_only = case_when(
+      is_AR_patient & !is_NE_patient ~ "AR",
+      is_NE_patient & !is_AR_patient ~ "NE",
+      TRUE ~ "N"
+    ),
+    Tissue_of_interest_AR_Amphicrine = case_when(
+      is_AR_patient ~ "AR",
+      is_NE_patient ~ "NE",
+      TRUE ~ "N"
+    )
+  )
+TMA_compiled_survival <- left_join(TMA_RISH_patient_analysis, TMA_RISH_patient_tissue, by = "Patient_ID") %>%
+  left_join(TMA_clinic_data, by = c("Patient_ID" = "Tissue #")) %>%
+  mutate(tumor_high_3_4 = `tumor: % ARG-TCT 3+` + `tumor: % ARG-TCT 4+`) %>%
+    mutate(tumor_medium_high_2_3_4 = `tumor: % ARG-TCT 2+` + `tumor: % ARG-TCT 3+` + `tumor: % ARG-TCT 4+`) %>%
+  mutate_at(vars(54,55,56,57,59,61,64,65,66,67,68,69,70,78,79), as.numeric)
+
+TMA_compiled_survival$Patient_Cell_Types = as.character(TMA_compiled_survival$Patient_Cell_Types)
+
+TMA_compiled_survival <- TMA_compiled_survival %>%
+    mutate(histo_type = case_when(
+    grepl("AR\\+/NE\\+|NE\\+, AR\\+", Patient_Cell_Types) ~ "Mixed",
+    grepl("AMPHICRINE|AR\\+/NEPC MIX|AR\\+ \\+ AR/NE MIX \\+ Focal Amphicrine", Patient_Cell_Types) ~ "Amphicrine",
+    grepl("^AR\\+$|^AR\\+, NC$", Patient_Cell_Types) ~ "AR",
+    grepl("^NE\\+$|^NC, NE\\+$", Patient_Cell_Types) ~ "NE",
+    grepl("DNPC", Patient_Cell_Types) ~ "Double Negative",
+    TRUE ~ "Other"
+  )) %>%
+  select(c(1,46,129,47:50,128,57,64:70,2:45,51:56,58:63,71:127))
+
+tumor_type_color <- c("AR" = "red", "Amphicrine" = "orange", 
+  "Mixed" = "brown", "Double Negative" = "blue", "NE" = "gold", "Other" = "black")
+
+TMA_compiled_survival %>%
+  filter(!is.na(`survival from dx (years)`)) %>%
+  ggplot(aes(x = `survival from dx (years)`, y = tumor_medium_high_2_3_4, color = histo_type)) +
+  geom_point(size = 3) +
+  geom_smooth(method = "lm", color = "grey", fill = "lightsalmon", se = TRUE) +
+  scale_color_manual(values = tumor_type_color) +
+  theme_classic() +
+  theme(legend.position = "none") +
+  theme(axis.title = element_text(size = 12, face = "bold")) +
+  labs(x = "Survival from Diagnosis (years)" , y = "Arg-TCT-1-1 Medium+ Intensity", title = "Survival from Diagnosis (years) vs. Arg-TCT-1-1 Medium+ Intensity") +
+  stat_cor(aes(color = NULL), method = "spearman", label.sep = "\n", label.x = 0, label.y = 100)
+
+TMA_compiled_survival %>%
+  filter(`Androgen Independence to Death (yrs)` != "NA") %>%
+  ggplot(aes(x = `Androgen Independence to Death (yrs)`, y = tumor_medium_high_2_3_4, color = histo_type)) +
+  geom_point(size = 3) +
+  geom_smooth(method = "lm", color = "grey", fill = "lightsalmon", se = TRUE) +
+  scale_color_manual(values = tumor_type_color) +
+  theme_classic() +
+  theme(legend.position = "none") +
+  theme(axis.title = element_text(size = 12, face = "bold")) +
+  labs(x = "AI to death (years)" , y = "Arg-TCT-1-1 Medium+ Intensity", title = "AI to death (years) vs. Arg-TCT-1-1 Medium+ intensity") +
+  stat_cor(aes(color = NULL), method = "spearman", label.sep = "\n", label.x = 0, label.y = 100)
+
+TMA_compiled_survival %>%
+  filter(`ADT - Death (years)` != "NA") %>%
+  ggplot(aes(x = `ADT - Death (years)`, y = tumor_medium_high_2_3_4, color = histo_type)) +
+  geom_point(size = 3) +
+  geom_smooth(method = "lm", color = "grey", fill = "lightsalmon", se = TRUE) +
+  scale_color_manual(values = tumor_type_color) +
+  theme_classic() +
+  theme(legend.position = "none") +
+  theme(axis.title = element_text(size = 12, face = "bold")) +
+  labs(x = "ADT to death (years)" , y = "Arg-TCT-1-1 Medium+ Intensity", title = "ADT to death (years) vs. Arg-TCT-1-1 Medium+ intensity") +
+  stat_cor(aes(color = NULL), method = "spearman", label.sep = "\n", label.x = 0, label.y = 100)
+
+TMA_compiled_survival %>%
+  filter(`Bone Met delay from diagnosis (yrs)` != "NA") %>%
+  ggplot(aes(x = `Bone Met delay from diagnosis (yrs)`, y = tumor_medium_high_2_3_4, color = histo_type)) +
+  geom_point(size=3) +
+  geom_smooth(method=lm , color="grey", fill="lightsalmon", se=TRUE) +
+  scale_color_manual(values = tumor_type_color) +
+  xlim(c(0,15)) +
+  theme_classic() +
+  theme(legend.position = "none") +
+  theme(axis.title = element_text(size = 12, face = "bold")) +
+  labs(x = "Diagnosis to Bone Mets (years)" , y = "Arg-TCT-1-1 Medium+ Intensity", title = "Diagnosis to Bone Mets (years) vs. Arg-TCT-1-1 Medium+ intensity") +
+  stat_cor(aes(color = NULL), method = "spearman", label.sep = "\n", label.x = 0, label.y = 100)
+```
+
