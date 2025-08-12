@@ -1,0 +1,90 @@
+---
+title: "Translation Efficiency Analysis"
+author: "Sonali Arora"
+date: "Aug 11, 2025"
+output: 
+  html_document:
+    toc: true
+    theme: united
+---
+
+```{r}
+rm(list=ls())
+
+library(DESeq2)
+library(edgeR)
+library(ggplot2)
+library(pheatmap)
+library(RColorBrewer)
+
+library(writexl)
+library(enrichR)
+
+mainDir = "lncap_analysis_Nov2023"
+resDir = file.path(mainDir,  "DEG_analysis")
+rawdata = readRDS("combatseq_adjusted_data.Rds")
+coldata = read.delim("merged_key.txt", header=T, stringsAsFactors = FALSE)
+
+identical( colnames(rawdata), coldata[,1])
+
+a1 = lapply(c("NE", "TCT", "Mut"), function(main_group){
+    
+    idx = which(coldata$SAMPLEGROUP==main_group)
+    
+    my_coldata = coldata[idx, ]
+    my_rawdata = rawdata[, idx]
+    
+    lp_idx = which(my_coldata$SAMPLETYPE=="LP")
+    hp_idx =  which(my_coldata$SAMPLETYPE=="HP")
+    
+    total_poly = my_rawdata[, lp_idx] + my_rawdata[, hp_idx]
+    colnames(total_poly) = paste0("total_poly_", c(1:ncol(total_poly)))
+    
+    temp = data.frame(SAMPLENAME  = colnames(total_poly), 
+                      SAMPLEGROUP = rep(main_group, ncol(total_poly)), 
+                      SAMPLETYPE  = rep("totalPoly", ncol(total_poly)), 
+                      batch = rep("totalPoly", ncol(total_poly)), 
+                      dataset = rep("totalPoly", ncol(total_poly)) )
+    
+    my_rawdata = cbind(my_rawdata, total_poly)
+    my_coldata = rbind(my_coldata, temp)
+    
+    mygroup1 =  "totalPoly"
+    mygroup2 =  "80S"
+
+     want = c( which(my_coldata$SAMPLETYPE == mygroup1) , which(my_coldata$SAMPLETYPE == mygroup2) )
+        mat = my_rawdata[, want]
+        new_coldata = my_coldata[want, ]
+        rownames(new_coldata) = colnames(mat)
+        
+        dds <- DESeqDataSetFromMatrix(countData = mat, 
+                                      colData = new_coldata, design = ~ SAMPLETYPE)
+        dds = DESeq(dds)
+        fold = 1.25 
+        lfc = log2(fold)
+        
+        comparison_group = unique(new_coldata$SAMPLEGROUP)
+        
+        tag = paste0(comparison_group, "_", mygroup1,"_vs_",mygroup2,"_fdr_0.05_fold_", fold)
+        message(tag)
+        res1 <- results(dds, alpha = 0.05, lfcThreshold=lfc, 
+                        contrast = c("SAMPLETYPE", mygroup1, mygroup2) )
+        resdf = as.data.frame(res1)
+        
+        myraw = mat
+        mycpm = cpm(myraw)
+        colnames(mycpm) = paste0("cpm_", colnames(mycpm))
+        colnames(myraw) = paste0("raw_", colnames(myraw))
+        resdf = cbind(gene = rownames(resdf), resdf , mycpm, myraw)
+        resdf$Translation_efficiency = "Not regulated" 
+        up_idx =  which(resdf$log2FoldChange > lfc&  resdf$padj < 0.05)
+        down_genes =which(resdf$log2FoldChange < -lfc &  resdf$padj < 0.05)
+        resdf$Translation_efficiency[up_idx] ="up-regulated"
+        resdf$Translation_efficiency[down_idx] ="down-regulated"      
+        resdf = as.data.frame(resdf)
+             
+        write_xlsx(resdf, file.path(resDir, paste0(tag,"_DESeq2_fdr_0.05_fc",fold,".xlsx")))
+})
+
+```
+
