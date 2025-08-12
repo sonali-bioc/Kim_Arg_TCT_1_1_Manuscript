@@ -1,0 +1,231 @@
+---
+title: "Fig 1"
+output: html_document
+date: "2025-08-10"
+---
+
+```{r}
+library(tidyverse)
+library(scales)
+library(ggrepel)
+library(gtools)
+library(genefilter)
+library(RColorBrewer)
+library(ggpubr)
+library(xlsx)
+library(pheatmap)
+library(rstatix)
+```
+
+# Fig_1a
+```{r}
+LNCaP_isoacceptor <- read.xlsx("Figures for Manuscript/Rscripts/Supplementary_Table_1.xlsx", sheetIndex = 1, header = TRUE)
+
+LNCaP_isoacceptor <- LNCaP_isoacceptor %>%
+  mutate(sig_tRNA = case_when(log2FC > log2(1.25) & p_value < 0.05 ~ "UP",
+                              log2FC < -log2(1.25) & p_value < 0.05 ~ "DOWN",
+                              TRUE ~ "NS"))
+
+color_vp <- c("DOWN" = "blue", "Not Significant" = "grey", "UP" = "red")
+
+LNCaP_isoacceptor %>%
+  ggplot(aes(x=log2FC, y=-log10(p_value), color = sig_tRNA)) +
+  geom_point(shape = 19, size = 2) +
+  geom_hline(yintercept = -log10(0.05), linetype = "dashed") +
+  geom_vline(xintercept = c(-log2(1.25), log2(1.25)), linetype = "dashed") +
+  scale_color_manual(values = color_vp) +
+  scale_x_continuous(limits = c(-1.5,1.5), breaks = seq(-1.5,1.5,0.5)) +
+  scale_y_continuous(limits = c(NA,2.5), breaks = seq(0,2.5,0.5)) +
+  theme_classic() +
+  theme(legend.position = "none") +
+  theme(axis.title = element_text(size = 12, face = "bold")) +
+  labs(x = "log2FC", y = "-log10(p.adj)", title = "LNCaP Isoacceptor tRNA") +
+  geom_text_repel(aes(label=ifelse(log2FC > log2(1.25)|log2FC < -log2(1.25), Isoacceptor, "")), 
+     max.overlaps = Inf, box.padding = 0.5, point.padding = 0.5, min.segment.length = 0, 
+     segment.linetype = 1, arrow = arrow(length = unit(0.01, "npc")))
+```
+
+# Fig 1c
+```{r}
+LNCaP_isodecoder <- read.xlsx("Figures for Manuscript/Rscripts/Supplementary_Table_1.xlsx", sheetIndex = 3, header = TRUE)
+
+LNCaP_isodecoder[c("log2FC")][sapply(LNCaP_isodecoder[c("log2FC")], is.infinite)] <- NA
+LNCaP_isodecoder$log2FC <- as.numeric(LNCaP_isodecoder$log2FC)
+LNCaP_isodecoder$p_value <- as.numeric(LNCaP_isodecoder$p_value)
+LNCaP_isodecoder <- LNCaP_isodecoder %>%
+  mutate(sig_tRNA = case_when(log2FC > log2(1.25) & p_value < 0.05 ~ "UP",
+                              log2FC < -log2(1.25) & p_value < 0.05 ~ "DOWN",
+                              TRUE ~ "NS"))
+LNCaP_isodecoder <- LNCaP_isodecoder %>%
+  na.omit()
+
+color_vp <- c("DOWN" = "blue", "Not Significant" = "grey", "UP" = "red")
+
+LNCaP_isodecoder %>%
+  ggplot(aes(x=log2FC, y=-log10(p_value), color = sig_tRNA)) +
+  geom_point(shape = 19, size = 2) +
+  geom_hline(yintercept = -log10(0.05), linetype = "dashed") +
+  geom_vline(xintercept = c(-log2(1.25), log2(1.25)), linetype = "dashed") +
+  scale_color_manual(values = color_vp) +
+  scale_x_continuous(limits = c(-3,3), breaks = seq(-3,3,1)) +
+  scale_y_continuous(limits = c(NA,4), breaks = seq(0,4,1)) +
+  theme_classic() +
+  theme(legend.position = "none") +
+  theme(axis.title = element_text(size = 12, face = "bold")) +
+  labs(x = "log2FC", y = "-log10(p.adj)", title = "LNCaP Isodecoder tRNA") +
+  geom_text_repel(aes(label=ifelse(`Isoacceptor` == "Arg_TCT", Isodecoder, "")), 
+      max.overlaps = Inf, box.padding = 0.5, point.padding = 0.5, min.segment.length = 0, segment.linetype = 1, arrow = arrow(length = unit(0.01, "npc")))
+
+LNCaP_isodecoder <- LNCaP_isodecoder %>%
+  mutate(Arg_TCT = case_when(`Isoacceptor` == "Arg_TCT" ~ "Yes", TRUE ~ "No"))
+color_Arg_TCT <- c("No" = "grey", "Yes" = "gold")
+
+LNCaP_isodecoder %>%
+  ggplot(aes(x=log2FC, y=-log10(p_value), color = Arg_TCT)) +
+  geom_point(shape = 19, size = 2) +
+  geom_hline(yintercept = -log10(0.05), linetype = "dashed") +
+  geom_vline(xintercept = c(-log2(1.25), log2(1.25)), linetype = "dashed") +
+  scale_color_manual(values = color_Arg_TCT) +
+  scale_x_continuous(limits = c(-3,3), breaks = seq(-3,3,1)) +
+  scale_y_continuous(limits = c(NA,4), breaks = seq(0,4,1)) +
+  theme_classic() +
+  theme(legend.position = "none") +
+  theme(axis.title = element_text(size = 12, face = "bold")) +
+  labs(x = "log2FC", y = "-log10(p.adj)", title = "LNCaP Isodecoder tRNA") +
+  geom_text_repel(aes(label=ifelse(`Isoacceptor` == "Arg_TCT", Isodecoder, "")), 
+      max.overlaps = Inf, box.padding = 0.5, point.padding = 0.5, min.segment.length = 0, segment.linetype = 1, arrow = arrow(length = unit(0.01, "npc")))
+```
+
+# Fig_1e
+```{r}
+Cell_line_data <- read_csv("Figures for Manuscript/Rscripts/Fig_1e+f.csv")
+
+Cell_line_data %>%
+  filter(!grepl('MSKCC|NCI', Cell_line)) %>%
+  ggplot(aes(x=ARG.6, y=`% Arg-TCT-1-1`, label = Cell_line)) +
+  geom_point() +
+  geom_smooth(method=lm , color="red", fill="salmon1", se=TRUE) +
+  stat_cor(aes(color = NULL), method = "pearson", label.x = -0.7, label.y = 80, label.sep = "\n") +
+  geom_text_repel() +
+  theme_classic() +
+  theme(legend.position = "none") +
+  theme(axis.title = element_text(size = 12, face = "bold")) +
+  labs(x = "AR score (ARG.6)" , y = "% Arg-TCT-1-1 in Arg-TCT group", title = "Arg-TCT-1-1 tRNA expression vs AR score")
+```
+
+# Fig_1f
+```{r}
+Cell_line_data <- read_csv("Figures for Manuscript/Rscripts/Fig_1e+f.csv")
+
+Cell_line_data %>%
+  filter(!grepl('MSKCC|NCI', Cell_line)) %>%
+  ggplot(aes(x=`ENO2`, y=`% Arg-TCT-1-1`, label = Cell_line)) +
+  geom_point() +
+  geom_smooth(method=lm , color="red", fill="tan", se=TRUE) +
+  stat_cor(aes(color = NULL), method = "pearson", label.x = 4, label.y = 90, label.sep = "\n") +
+  #xlim(4,10.5) + 
+  geom_text_repel() +
+  theme_classic() +
+  theme(legend.position = "none") +
+  theme(axis.title = element_text(size = 12, face = "bold")) +
+  labs(x = "ENO2 expression", y = "% Arg-TCT-1-1 in Arg-TCT group", title = "Arg-TCT-1-1 tRNA expression vs ENO2 expression")
+
+Cell_line_data_2 %>%
+  filter(!grepl('MSKCC|NCI', Cell_line)) %>%
+  ggplot(aes(x=`SCN3A`, y=`% Arg-TCT-1-1`, label = Cell_line)) +
+  geom_point() +
+  geom_smooth(method=lm , color="red", fill="tan", se=TRUE) +
+  stat_cor(aes(color = NULL), method = "pearson", label.x = 4, label.y = 90, label.sep = "\n") +
+  geom_text_repel() +
+  theme_classic() +
+  theme(legend.position = "none") +
+  theme(axis.title = element_text(size = 12, face = "bold")) +
+  labs(x = "SCN3A expression", y = "% Arg-TCT-1-1 in Arg-TCT group", title = "Arg-TCT-1-1 tRNA expression vs SCN3A expression")
+```
+
+# Fig_1K
+```{r}
+TMA_RISH <- read_csv("Figures for Manuscript/Rscripts/Fig_1k.csv")
+TMA_RISH <- TMA_RISH %>%
+  mutate_at(vars(6:49), as.numeric) %>%
+  rename("Sample_ID" = "Image Tag")
+TMA_RISH_1 <- TMA_RISH %>%
+  filter(`Included in analysis` == "Y")
+TMA_RISH_1_analysis <- TMA_RISH_1 %>%
+  group_by(Sample_ID) %>%
+  summarise(across(c(6:48), mean, na.rm=TRUE))
+TMA_RISH_tissue_info <- TMA_RISH_1 %>%
+  select(c(2:4)) %>%
+  distinct()
+TMA_RISH_plot <- left_join(TMA_RISH_tissue_info, TMA_RISH_1_analysis, by = "Sample_ID")
+TMA_RISH_plot <- TMA_RISH_plot %>%
+    mutate(Patient_ID = str_extract(Sample_ID, "\\d+-\\d+")) %>%
+    mutate(across(matches("area_perc|cell_count"), as.numeric))
+
+TMA_RISH_plot_AR <- TMA_RISH_plot %>%
+  mutate(Tissue_of_interest = case_when(`Cell Type` == "AR+" ~ "AR",
+                                           `Cell Type` == "NE+" ~ "NE",
+                                           TRUE ~ "N"))
+
+TMA_RISH_plot_color <- c("AR" = "red", "NE" = "gold")
+TMA_RISH_plot_AR$Tissue_of_interest <- factor(TMA_RISH_plot_AR$Tissue_of_interest, levels = c("AR", "NE"))
+
+TMA_RISH_plot_Arg_TCT_copies_1 <- TMA_RISH_plot_AR %>%
+  filter(`Tissue_of_interest` != "N") %>%
+  ggplot(aes(x = Tissue_of_interest, y = `tumor: Avg ARG-TCT Copies Per Cell`, fill = Tissue_of_interest)) +
+  geom_violin(alpha = 0.15, width = 0.5, trim = FALSE, color = "Black", linewidth = 0.5) +
+  scale_fill_manual(values = TMA_RISH_plot_color) +
+  theme_classic() +
+  theme(legend.position = "none") +
+  theme(axis.title = element_text(size = 12, face = "bold")) +
+  labs(x = "UW TMA Patient Tissue", y = "Avg ARG-TCT Copies Per Cell", title = "Arg-TCT-1-1 tRNA RISH - AR+ vs. NE+")
+
+TMA_RISH_plot_Arg_TCT_copies_1 +
+  geom_boxplot(width = 0.15, position = position_dodge(1), alpha = 0.4, color = "black") +
+  geom_jitter(color = "black", shape = 16, size = 2, width = 0.05)
+
+stat_TMA_RISH_plot_Arg_TCT_copies <- TMA_RISH_plot_AR %>%
+  filter(Tissue_of_interest %in% c("AR", "NE")) %>%
+  t_test(`tumor: Avg ARG-TCT Copies Per Cell` ~ Tissue_of_interest) %>%
+  add_significance() %>%
+  add_xy_position(x = "Cell Type")
+
+stat_TMA_RISH_plot_Arg_TCT_copies
+```
+
+# Fig_1l
+```{r}
+Patient_scores <- read.xlsx("Figures for Manuscript/Rscripts/Fig_1l.xlsx", sheetIndex = 1, header = TRUE)
+
+Patient_scores <- Patient_scores %>%
+  select(c(3,28:32))
+
+TMA_RISH_plot_2 <- TMA_RISH_plot %>%
+  mutate(tumor_ID = sub("^\\d+\\)\\s*", "", Sample_ID))
+
+Patient_scores_TMA_RISH <- left_join(Patient_scores, TMA_RISH_plot_2, by = c("Tumor.ID" = "tumor_ID"))
+Patient_scores_TMA_RISH <- Patient_scores_TMA_RISH %>%
+  na.omit()
+Patient_scores_TMA_RISH$RNAseq.ARG.10 <- as.numeric(Patient_scores_TMA_RISH$RNAseq.ARG.10)
+Patient_scores_TMA_RISH$RNAseq.ARG.6 <- as.numeric(Patient_scores_TMA_RISH$RNAseq.ARG.6)
+Patient_scores_TMA_RISH$RNAseq.NE.10 <- as.numeric(Patient_scores_TMA_RISH$RNAseq.NE.10)
+Patient_scores_TMA_RISH$RNAseq.NE.6 <- as.numeric(Patient_scores_TMA_RISH$RNAseq.NE.6)
+
+tumor_type_color <- c("ARpos_NEneg" = "red", "ARlow_NEneg" = "red", "ARpos_NEpos" = "orange", "ARneg_NEpos" = "gold", "ARneg_NElow" = "gold", "ARneg_NEneg" = "blue")
+
+Patient_scores_TMA_RISH %>%
+  filter(!`Tumor.ID` == "18-115_H2") %>%
+  ggplot(aes(x = RNAseq.ARG.10, y = `tumor: Avg ARG-TCT Copies Per Cell`, color = RNAseq.phenotype)) +
+  geom_point(size=3) +
+  geom_smooth(method=lm , color="grey", fill="lightpink", se=TRUE) +
+  scale_color_manual(values = tumor_type_color) +
+  theme_classic() +
+  theme(legend.position = "none") +
+  theme(axis.title = element_text(size = 12, face = "bold")) +
+  labs(x = "AR score" , y = "Arg-TCT-1-1 copies per cell", title = "Arg-TCT-1-1 copies vs. AR score ARG.10") +
+  stat_cor(aes(color = NULL), method = "pearson", label.x = -1, label.y = 50, label.sep = "\n")
+```
+
+
+
+
