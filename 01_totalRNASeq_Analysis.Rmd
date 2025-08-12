@@ -1,0 +1,122 @@
+---
+title: "Total RNASeq Analysis"
+author: "Sonali Arora"
+date: "Aug 11, 2025"
+output: 
+  html_document:
+    toc: true
+    theme: united
+---
+
+```{r}
+library(edgeR)
+library(ggplot2)
+library(DESeq2)
+library(edgeR)
+library(ggplot2)
+library(pheatmap)
+library(RColorBrewer)
+library(writexl)
+```
+
+# Transcriptomic analysis
+
+```{r}
+
+rm(list=ls())
+mainDir = "lncap_analysis_Nov2023"
+
+adjusted = readRDS("combatseq_adjusted_data.Rds")
+cpm_counts = readRDS("combatseq_cpm_data.Rds")
+coldata = read.delim("merged_key.txt", header=T, stringsAsFactors = FALSE)
+
+resDir = file.path(mainDir,  "totalRNA_analysis")
+rawdata <- adjusted
+
+colnames(coldata) = gsub("SAMPLETYPE", "type", colnames(coldata))
+colnames(coldata) = gsub("SAMPLEGROUP", "group", colnames(coldata))
+
+idx = which(coldata$type=="RNA")
+
+coldata = coldata[idx, ]
+rawdata = rawdata[, idx]
+coldata$group = gsub("1|2|3|4", "", coldata$group)
+
+dds <- DESeqDataSetFromMatrix(countData = rawdata, 
+                              colData = coldata, design = ~ group)
+dds = DESeq(dds)
+fold = 1.25 
+lfc = log2(fold)
+
+# Exploratory plots
+
+norm_data = cpm(rawdata)
+my_data = norm_data
+my_coldata = coldata
+my_sampleName = coldata$SAMPLENAME
+
+sampleDists <- dist( t( my_data ) )
+sampleDistMatrix <- as.matrix( sampleDists )
+hc = hclust(sampleDists)
+
+mdsData <- data.frame(cmdscale(sampleDistMatrix))
+mds <- cbind(mdsData, as.data.frame(my_coldata))
+mds_rna <- ggplot(mds, aes(X1,X2,color=group, shape=type)) +
+    geom_point(size=4)+ theme_bw() +
+    geom_text(aes(label=my_sampleName),hjust="inward", vjust=2, size=4)+
+    ggtitle(paste0("MDS plot : ")) +
+    theme(plot.title = element_text(lineheight=.8, face="bold")) 
+
+pc= prcomp(t(my_data))
+pc_data1 = data.frame(PC1=pc$x[,1], PC2=pc$x[,2], my_coldata )
+percentVar <- (pc$sdev^2 / sum( pc$sdev^2 ) )*100
+percentVar= round(percentVar[1:2], 2)
+
+p2_rna = ggplot(pc_data1, aes(PC1, PC2, color=group, shape=type)) +
+    geom_point(size=4) +theme_bw() +
+    xlab(paste0("PC1: ",percentVar[1],"% variance")) +
+    ylab(paste0("PC2: ",percentVar[2],"% variance"))+
+    geom_text(aes(label=my_sampleName),hjust="inward", vjust=2, size=4)+
+    ggtitle(paste0("PCA plot : ")) +
+    theme(plot.title = element_text(lineheight=.8, face="bold")) 
+
+pdf(file.path(resDir, 
+    paste0("lncap__exploratory_plot_allgenes_only_rna_round2_11_17_2023.pdf")), width =10)
+plot(hc, main = paste0("Dendrogram"))
+print(mds_rna)
+print(p2_rna)
+dev.off()
+
+# deseq2 analysis 
+group1 = "LP" 
+group2 = "TCT"
+
+mygroup1 = group1[yidx]
+mygroup2 = group2[yidx]
+
+message(mygroup1)
+message(mygroup2)
+
+tag = paste0( mygroup1,"_vs_",mygroup2,"_fdr_0.05_fold_", fold)
+res1 <- results(dds, alpha = 0.05, lfcThreshold=lfc, 
+                contrast = c("group", mygroup1, mygroup2) )
+resdf = as.data.frame(res1)
+
+myraw = rawdata[rownames(resdf), which(   coldata$group %in% c(mygroup1, mygroup2)) ]
+
+mycpm = cpm(myraw)
+colnames(mycpm) = paste0("cpm_", colnames(mycpm))
+colnames(myraw) = paste0("raw_", colnames(myraw))
+resdf = cbind(gene = rownames(resdf), resdf , mycpm, myraw)
+
+up_genes = resdf[ which(resdf$log2FoldChange > lfc&  resdf$padj < 0.05), ]
+down_genes = resdf[which(resdf$log2FoldChange < -lfc &  resdf$padj < 0.05), ]
+
+message(tag)
+message("up:", nrow(up_genes)) # 1462
+message("down:", nrow(down_genes)) # 1441
+
+lst = list(resdf, up_genes, down_genes)
+names(lst) = c("all_genes", "up_regulated_genes", "down_regulated_genes")
+write_xlsx(lst, file.path(resDir, paste0("totalRNA_",tag,"_DESeq2_fdr_0.05_fc",fold,".xlsx")))
+```
