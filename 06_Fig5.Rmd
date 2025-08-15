@@ -12,11 +12,11 @@ library(scales)
 Fig_5b, c, d
 ```{r}
 #File
-LNCaP_AD_P_80s <- read_csv("AD_totalPoly_vs_80S_fdr_0.05_fold_1.25_DESeq2_fdr_0.05_fc1.25.csv")
-LNCaP_LP_P_80s <- read_csv("NE_totalPoly_vs_80s_fdr_0.05_fold_1.25_DESeq2_fdr_0.05_fc1.25.csv")
-LNCaP_UCU_P_80s <- read_csv("TCT_totalPoly_vs_80s_fdr_0.05_fold_1.25_DESeq2_fdr_0.05_fc1.25.csv")
-codons <- read_csv("codon_usage_18kgenes_hg38.csv")
-Codon_AA <- read_csv("codon_aminoacid_table.csv")
+LNCaP_AD_P_80s <- read_csv("data/AD_totalPoly_vs_80S_fdr_0.05_fold_1.25_DESeq2_fdr_0.05_fc1.25.csv")
+LNCaP_LP_P_80s <- read_csv("data/NE_totalPoly_vs_80s_fdr_0.05_fold_1.25_DESeq2_fdr_0.05_fc1.25.csv")
+LNCaP_UCU_P_80s <- read_csv("data/TCT_totalPoly_vs_80s_fdr_0.05_fold_1.25_DESeq2_fdr_0.05_fc1.25.csv")
+codons <- read_csv("data/codon_usage_18kgenes_hg38.csv")
+Codon_AA <- read_csv("data/codon_aminoacid_table.csv")
 
 
 # Define color scales once
@@ -130,7 +130,7 @@ process_and_plot(LNCaP_UCU_P_80s, codons, Codon_AA, "LNCaP UCU")
 
 ```{r}
 #File
-LNCaP_UCU_LP_polysome_seq <- read.csv("Figures for Manuscript/Supplementary Tables/LNCaP_UCU_vs_LP_polysome_RNA_seq.csv")
+LNCaP_UCU_LP_polysome_seq <- read.csv("data/LNCaP_UCU_vs_LP_polysome_RNA_seq.csv")
 codons <- read_csv("codon_usage_18kgenes_hg38.csv")
 codon_freq <- codons %>%
   rowwise() %>%
