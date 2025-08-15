@@ -22,8 +22,8 @@ library(enrichR)
 
 mainDir = "lncap_analysis_Nov2023"
 resDir = file.path(mainDir,  "DEG_analysis")
-rawdata = readRDS("combatseq_adjusted_data.Rds")
-coldata = read.delim("merged_key.txt", header=T, stringsAsFactors = FALSE)
+rawdata = readRDS("data/combatseq_adjusted_data.Rds")
+coldata = read.delim("data/merged_key.txt", header=T, stringsAsFactors = FALSE)
 
 identical( colnames(rawdata), coldata[,1])
 
