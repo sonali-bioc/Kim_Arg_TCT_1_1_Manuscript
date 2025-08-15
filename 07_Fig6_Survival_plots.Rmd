@@ -12,8 +12,8 @@ library(ggpubr)
 ```
 ```{r}
 
-TMA_RISH <- read_csv("Figures for Manuscript/Rscripts/Fig_1k.csv")
-TMA_clinic_data <- read_csv("Figures for Manuscript/Rscripts/UWTAN_tissue_clinical_info.csv")
+TMA_RISH <- read_csv("data/Fig_1k.csv")
+TMA_clinic_data <- read_csv("data/UWTAN_tissue_clinical_info.csv")
 
 TMA_RISH_cleaned <- TMA_RISH %>%
   rename("Sample_ID" = "Image Tag") %>%
