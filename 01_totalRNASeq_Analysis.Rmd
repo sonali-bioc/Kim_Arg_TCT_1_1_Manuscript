@@ -26,9 +26,9 @@ library(writexl)
 rm(list=ls())
 mainDir = "lncap_analysis_Nov2023"
 
-adjusted = readRDS("combatseq_adjusted_data.Rds")
-cpm_counts = readRDS("combatseq_cpm_data.Rds")
-coldata = read.delim("merged_key.txt", header=T, stringsAsFactors = FALSE)
+adjusted = readRDS("data/combatseq_adjusted_data.Rds")
+cpm_counts = cpm(adjusted)
+coldata = read.delim("data/merged_key.txt", header=T, stringsAsFactors = FALSE)
 
 resDir = file.path(mainDir,  "totalRNA_analysis")
 rawdata <- adjusted
