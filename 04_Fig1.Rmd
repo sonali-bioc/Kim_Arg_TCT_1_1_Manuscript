@@ -19,7 +19,7 @@ library(rstatix)
 
 # Fig_1a
 ```{r}
-LNCaP_isoacceptor <- read.xlsx("Figures for Manuscript/Rscripts/Supplementary_Table_1.xlsx", sheetIndex = 1, header = TRUE)
+LNCaP_isoacceptor <- read.xlsx("data/Supplementary_Table_1.xlsx", sheetIndex = 1, header = TRUE)
 
 LNCaP_isoacceptor <- LNCaP_isoacceptor %>%
   mutate(sig_tRNA = case_when(log2FC > log2(1.25) & p_value < 0.05 ~ "UP",
@@ -47,7 +47,7 @@ LNCaP_isoacceptor %>%
 
 # Fig 1c
 ```{r}
-LNCaP_isodecoder <- read.xlsx("Figures for Manuscript/Rscripts/Supplementary_Table_1.xlsx", sheetIndex = 3, header = TRUE)
+LNCaP_isodecoder <- read.xlsx("data/Supplementary_Table_1.xlsx", sheetIndex = 3, header = TRUE)
 
 LNCaP_isodecoder[c("log2FC")][sapply(LNCaP_isodecoder[c("log2FC")], is.infinite)] <- NA
 LNCaP_isodecoder$log2FC <- as.numeric(LNCaP_isodecoder$log2FC)
@@ -98,7 +98,7 @@ LNCaP_isodecoder %>%
 
 # Fig_1e
 ```{r}
-Cell_line_data <- read_csv("Figures for Manuscript/Rscripts/Fig_1e+f.csv")
+Cell_line_data <- read_csv("data/Fig_1e+f.csv")
 
 Cell_line_data %>%
   filter(!grepl('MSKCC|NCI', Cell_line)) %>%
@@ -115,7 +115,7 @@ Cell_line_data %>%
 
 # Fig_1f
 ```{r}
-Cell_line_data <- read_csv("Figures for Manuscript/Rscripts/Fig_1e+f.csv")
+Cell_line_data <- read_csv("data/Fig_1e+f.csv")
 
 Cell_line_data %>%
   filter(!grepl('MSKCC|NCI', Cell_line)) %>%
@@ -145,7 +145,7 @@ Cell_line_data_2 %>%
 
 # Fig_1K
 ```{r}
-TMA_RISH <- read_csv("Figures for Manuscript/Rscripts/Fig_1k.csv")
+TMA_RISH <- read_csv("data/Fig_1k.csv")
 TMA_RISH <- TMA_RISH %>%
   mutate_at(vars(6:49), as.numeric) %>%
   rename("Sample_ID" = "Image Tag")
@@ -195,7 +195,7 @@ stat_TMA_RISH_plot_Arg_TCT_copies
 
 # Fig_1l
 ```{r}
-Patient_scores <- read.xlsx("Figures for Manuscript/Rscripts/Fig_1l.xlsx", sheetIndex = 1, header = TRUE)
+Patient_scores <- read.xlsx("data/Fig_1l.xlsx", sheetIndex = 1, header = TRUE)
 
 Patient_scores <- Patient_scores %>%
   select(c(3,28:32))
