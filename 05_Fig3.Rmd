@@ -14,7 +14,7 @@ library(xlsx)
 # Fig 3b
 ```{r}
 
-LNCaP_RNA_seq <- read.xlsx("Figures for Manuscript/Rscripts/Supplementary_Table_2.xlsx", sheetIndex = 1, header = TRUE)
+LNCaP_RNA_seq <- read.xlsx("data/Supplementary_Table_2.xlsx", sheetIndex = 1, header = TRUE)
 LNCaP_RNA_seq$RNA_AD1 <- as.numeric(LNCaP_RNA_seq$RNA_AD1)
 LNCaP_RNA_seq$RNA_AD2 <- as.numeric(LNCaP_RNA_seq$RNA_AD2)
 LNCaP_RNA_seq$RNA_AD3 <- as.numeric(LNCaP_RNA_seq$RNA_AD3)
@@ -24,7 +24,7 @@ LNCaP_RNA_seq$RNA_LP3 <- as.numeric(LNCaP_RNA_seq$RNA_LP3)
 LNCaP_RNA_seq$RNA_UCU1 <- as.numeric(LNCaP_RNA_seq$RNA_UCU1)
 LNCaP_RNA_seq$RNA_UCU2 <- as.numeric(LNCaP_RNA_seq$RNA_UCU2)
 
-PC_ATAC <- read_csv("Polysome RNA-Seq/Transcriptome Analysis/ATAC-Seq_Tang_et_al.csv")
+PC_ATAC <- read_csv("data/ATAC-Seq_Tang_et_al.csv")
 PC_ATAC_LNCaP <- PC_ATAC %>%
   filter(class == "CRPC-AR" & LNCaP != 0) %>%
   select(1:8,15)
