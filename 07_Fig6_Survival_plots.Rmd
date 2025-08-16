@@ -68,15 +68,11 @@ TMA_compiled_survival <- TMA_compiled_survival %>%
   )) %>%
   select(c(1,46,129,47:50,128,57,64:70,2:45,51:56,58:63,71:127))
 
-tumor_type_color <- c("AR" = "red", "Amphicrine" = "orange", 
-  "Mixed" = "brown", "Double Negative" = "blue", "NE" = "gold", "Other" = "black")
-
 TMA_compiled_survival %>%
   filter(!is.na(`survival from dx (years)`)) %>%
   ggplot(aes(x = `survival from dx (years)`, y = tumor_medium_high_2_3_4, color = histo_type)) +
   geom_point(size = 3) +
   geom_smooth(method = "lm", color = "grey", fill = "lightsalmon", se = TRUE) +
-  scale_color_manual(values = tumor_type_color) +
   theme_classic() +
   theme(legend.position = "none") +
   theme(axis.title = element_text(size = 12, face = "bold")) +
@@ -88,7 +84,6 @@ TMA_compiled_survival %>%
   ggplot(aes(x = `Androgen Independence to Death (yrs)`, y = tumor_medium_high_2_3_4, color = histo_type)) +
   geom_point(size = 3) +
   geom_smooth(method = "lm", color = "grey", fill = "lightsalmon", se = TRUE) +
-  scale_color_manual(values = tumor_type_color) +
   theme_classic() +
   theme(legend.position = "none") +
   theme(axis.title = element_text(size = 12, face = "bold")) +
@@ -100,7 +95,6 @@ TMA_compiled_survival %>%
   ggplot(aes(x = `ADT - Death (years)`, y = tumor_medium_high_2_3_4, color = histo_type)) +
   geom_point(size = 3) +
   geom_smooth(method = "lm", color = "grey", fill = "lightsalmon", se = TRUE) +
-  scale_color_manual(values = tumor_type_color) +
   theme_classic() +
   theme(legend.position = "none") +
   theme(axis.title = element_text(size = 12, face = "bold")) +
@@ -112,7 +106,6 @@ TMA_compiled_survival %>%
   ggplot(aes(x = `Bone Met delay from diagnosis (yrs)`, y = tumor_medium_high_2_3_4, color = histo_type)) +
   geom_point(size=3) +
   geom_smooth(method=lm , color="grey", fill="lightsalmon", se=TRUE) +
-  scale_color_manual(values = tumor_type_color) +
   xlim(c(0,15)) +
   theme_classic() +
   theme(legend.position = "none") +
