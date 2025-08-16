@@ -31,23 +31,7 @@ TMA_RISH_patient_analysis <- TMA_RISH_cleaned %>%
 TMA_RISH_patient_tissue <- TMA_RISH_cleaned %>%
   group_by(Patient_ID) %>%
   summarise(
-    Patient_Cell_Types = paste(unique(`Cell Type`), collapse = ", "),
-    # Create logical flags for AR and NE status
-    is_AR_patient = any(`Cell Type` %in% c("AR+", "AMPHICRINE", "AR+ + AR/NE MIX + Focal Amphicrine", "AR+ and NE+", "AR+/NE+")),
-    is_NE_patient = any(`Cell Type` == "NE+"),
-    .groups = "drop"
-  ) %>%
-  mutate(
-    Tissue_of_interest_AR_only = case_when(
-      is_AR_patient & !is_NE_patient ~ "AR",
-      is_NE_patient & !is_AR_patient ~ "NE",
-      TRUE ~ "N"
-    ),
-    Tissue_of_interest_AR_Amphicrine = case_when(
-      is_AR_patient ~ "AR",
-      is_NE_patient ~ "NE",
-      TRUE ~ "N"
-    )
+    Patient_Cell_Types = paste(unique(`Cell Type`), collapse = ", ")
   )
 TMA_compiled_survival <- left_join(TMA_RISH_patient_analysis, TMA_RISH_patient_tissue, by = "Patient_ID") %>%
   left_join(TMA_clinic_data, by = c("Patient_ID" = "Tissue #")) %>%
@@ -57,20 +41,9 @@ TMA_compiled_survival <- left_join(TMA_RISH_patient_analysis, TMA_RISH_patient_t
 
 TMA_compiled_survival$Patient_Cell_Types = as.character(TMA_compiled_survival$Patient_Cell_Types)
 
-TMA_compiled_survival <- TMA_compiled_survival %>%
-    mutate(histo_type = case_when(
-    grepl("AR\\+/NE\\+|NE\\+, AR\\+", Patient_Cell_Types) ~ "Mixed",
-    grepl("AMPHICRINE|AR\\+/NEPC MIX|AR\\+ \\+ AR/NE MIX \\+ Focal Amphicrine", Patient_Cell_Types) ~ "Amphicrine",
-    grepl("^AR\\+$|^AR\\+, NC$", Patient_Cell_Types) ~ "AR",
-    grepl("^NE\\+$|^NC, NE\\+$", Patient_Cell_Types) ~ "NE",
-    grepl("DNPC", Patient_Cell_Types) ~ "Double Negative",
-    TRUE ~ "Other"
-  )) %>%
-  select(c(1,46,129,47:50,128,57,64:70,2:45,51:56,58:63,71:127))
-
 TMA_compiled_survival %>%
   filter(!is.na(`survival from dx (years)`)) %>%
-  ggplot(aes(x = `survival from dx (years)`, y = tumor_medium_high_2_3_4, color = histo_type)) +
+  ggplot(aes(x = `survival from dx (years)`, y = tumor_medium_high_2_3_4, color = "black")) +
   geom_point(size = 3) +
   geom_smooth(method = "lm", color = "grey", fill = "lightsalmon", se = TRUE) +
   theme_classic() +
@@ -81,7 +54,7 @@ TMA_compiled_survival %>%
 
 TMA_compiled_survival %>%
   filter(`Androgen Independence to Death (yrs)` != "NA") %>%
-  ggplot(aes(x = `Androgen Independence to Death (yrs)`, y = tumor_medium_high_2_3_4, color = histo_type)) +
+  ggplot(aes(x = `Androgen Independence to Death (yrs)`, y = tumor_medium_high_2_3_4, color = "black")) +
   geom_point(size = 3) +
   geom_smooth(method = "lm", color = "grey", fill = "lightsalmon", se = TRUE) +
   theme_classic() +
@@ -92,7 +65,7 @@ TMA_compiled_survival %>%
 
 TMA_compiled_survival %>%
   filter(`ADT - Death (years)` != "NA") %>%
-  ggplot(aes(x = `ADT - Death (years)`, y = tumor_medium_high_2_3_4, color = histo_type)) +
+  ggplot(aes(x = `ADT - Death (years)`, y = tumor_medium_high_2_3_4, color = "black")) +
   geom_point(size = 3) +
   geom_smooth(method = "lm", color = "grey", fill = "lightsalmon", se = TRUE) +
   theme_classic() +
@@ -103,7 +76,7 @@ TMA_compiled_survival %>%
 
 TMA_compiled_survival %>%
   filter(`Bone Met delay from diagnosis (yrs)` != "NA") %>%
-  ggplot(aes(x = `Bone Met delay from diagnosis (yrs)`, y = tumor_medium_high_2_3_4, color = histo_type)) +
+  ggplot(aes(x = `Bone Met delay from diagnosis (yrs)`, y = tumor_medium_high_2_3_4, color = "black")) +
   geom_point(size=3) +
   geom_smooth(method=lm , color="grey", fill="lightsalmon", se=TRUE) +
   xlim(c(0,15)) +
